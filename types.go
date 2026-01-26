@@ -67,4 +67,7 @@ type SubmissionCheckResult struct {
 	RuntimePercent   float64 `json:"runtime_percentile"`
 	MemoryPercent    float64 `json:"memory_percentile"`
 	FullCompileError string  `json:"full_compile_error"`
+	LastTestcase     string  `json:"last_testcase"`
+	CodeOutput       string  `json:"code_output"`
+	ExpectedOutput   string  `json:"expected_output"`
 }

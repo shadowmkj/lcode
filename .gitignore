@@ -1,2 +1,5 @@
 .env
+build-and-move.sh
 
+# Added by goreleaser init:
+dist/

@@ -48,13 +48,20 @@ sudo mv lcode /usr/local/bin/
 **(Usage examples and commands will be detailed here.)**
 
 ```bash
-# Example: Fetch a Leetcode problem by ID
+# Example: Fetch a Leetcode problem by ID (defaults to python)
 lcode pick 123
-# Example: Fetch a Leetcode problem by name
+# Example: Fetch a Leetcode problem by name (defaults to python)
 lcode pick two-sum
 
+# Example: Fetch with a specific language
+lcode pick 123 rust
+lcode pick two-sum rust
+
+# Example: Authenticate with Leetcode
+lcode auth
+
 # Example: Submit your solution for a problem
-lcode submit solution.go
+lcode submit solution.py
 ```
 
 ---

@@ -35,10 +35,18 @@ func main() {
 	switch command {
 	case "pick":
 		arg := os.Args[2]
-		handlePick(httpClient, arg)
+		var language string
+		if len(os.Args) == 4 {
+			language = os.Args[3]
+		}
+		handlePick(httpClient, arg, language)
 	case "submit":
 		arg := os.Args[2]
-		handleSubmit(httpClient, arg)
+		var language string
+		if len(os.Args) == 4 {
+			language = os.Args[3]
+		}
+		handleSubmit(httpClient, arg, language)
 	case "auth":
 		handleAuth(httpClient)
 	default:

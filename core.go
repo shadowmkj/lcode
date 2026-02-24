@@ -2,10 +2,8 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"os"
-	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
@@ -15,7 +13,7 @@ import (
 	"github.com/charmbracelet/glamour"
 )
 
-func handlePick(httpClient HttpClient, input string) {
+func handlePick(httpClient HttpClient, input string, language string) {
 
 	slug := input
 	if _, err := strconv.Atoi(input); err == nil {
@@ -71,15 +69,31 @@ func handlePick(httpClient HttpClient, input string) {
 		log.Fatal(err)
 	}
 	fmt.Println(out)
-
-	f, err := os.Create(fmt.Sprintf("%s.py", slug))
-	if err != nil {
-		log.Fatal(err)
+	var f *os.File
+	if language == "" || language == "python" || language == "python3" {
+		f, err = os.Create(fmt.Sprintf("%s.py", slug))
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	if language == "rust" {
+		f, err = os.Create(fmt.Sprintf("%s.rs", slug))
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	defer f.Close()
 
 	for _, snippet := range q.CodeSnippets {
-		if snippet.LangSlug == "python3" {
+		if snippet.LangSlug == "rust" && (language == "rust") {
+			snippet.Code = fmt.Sprintf("# @lc app=leetcode id=%s lang=rust\n\n%s\n# @lc code=end\n", q.QuestionID, snippet.Code)
+			_, err := f.WriteString(snippet.Code)
+			if err != nil {
+				log.Fatal(err)
+			}
+			break
+		}
+		if snippet.LangSlug == "python3" && (language == "python3" || language == "") {
 			var types []string
 			for _, t := range []string{"List", "Optional"} {
 				if strings.Contains(snippet.Code, t+"[") {
@@ -99,28 +113,9 @@ func handlePick(httpClient HttpClient, input string) {
 		}
 	}
 
-	cmd := exec.Command("bat")
-
-	reader, writer := io.Pipe()
-	cmd.Stdin = reader
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to start less: %v\n", err)
-		return
-	}
-
-	go func() {
-		defer writer.Close()
-		fmt.Fprint(writer, out)
-	}()
-
-	openInEditor(f.Name())
-	cmd.Wait()
 }
 
-func handleSubmit(httpClient HttpClient, filename string) {
+func handleSubmit(httpClient HttpClient, filename string, language string) {
 	contentBytes, err := os.ReadFile(filename)
 	if err != nil {
 		log.Fatalf("Could not read file: %v", err)
@@ -133,14 +128,28 @@ func handleSubmit(httpClient HttpClient, filename string) {
 	}
 
 	slug := strings.TrimSuffix(filename, ".py")
+	slug = strings.TrimSuffix(slug, ".rs")
+
+	fmt.Println(slug)
 
 	fmt.Printf("Submitting %s (ID: %s)...\n", slug, questionID)
 
-	httpClient.setHeader("Referer", fmt.Sprintf("https://leetcode.com/problems/%s/", slug))
-	subPayload := SubmissionPayload{
-		Lang:       "python3",
-		QuestionID: questionID,
-		TypedCode:  content,
+	httpClient.setHeader("Referer", fmt.Sprintf("https://leetcode.com/problems/%s/description", slug))
+	var subPayload SubmissionPayload
+	if language == "" || language == "python" || language == "python3" {
+		subPayload = SubmissionPayload{
+			Lang:       "python3",
+			QuestionID: questionID,
+			TypedCode:  content,
+		}
+	}
+
+	if language == "rust" {
+		subPayload = SubmissionPayload{
+			Lang:       "rust",
+			QuestionID: questionID,
+			TypedCode:  content,
+		}
 	}
 
 	var subResp SubmissionResponse
@@ -156,8 +165,10 @@ func handleSubmit(httpClient HttpClient, filename string) {
 	if resp.IsError() {
 		if resp.StatusCode() == 403 {
 			log.Fatal("Submission failed: Forbidden (403). Check your authentication.")
+			fmt.Println("Unauthenticated! Please run 'lcode auth' to set up your environment.")
+		} else {
+			fmt.Println(resp.StatusCode())
 		}
-		fmt.Println("Unauthenticated! Please run 'lcode auth' to set up your environment.")
 		return
 	}
 
@@ -199,7 +210,6 @@ func printResult(res SubmissionCheckResult) {
 	}
 	fmt.Println("-----------------------------")
 }
-
 
 func parseQuestionID(content string) string {
 	// Looks for: # @lc app=leetcode id=123 lang=python3
